@@ -2,11 +2,12 @@
 pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
+import "./SafeBank.sol";
 
 contract Attacker {
     SafeBank public secureContract;
 
-    constructor(SecureContract _secureContract) {
+    constructor(SafeBank _secureContract) {
         secureContract = _secureContract;
     }
 
@@ -22,11 +23,11 @@ contract Attacker {
 }
 
 contract SecureContractTest is Test {
-    SecureContract secureContract;
+    SafeBank secureContract;
     Attacker attacker;
 
     function setUp() public {
-        secureContract = new SecureContract();
+        secureContract = new SafeBank();
         attacker = new Attacker(secureContract);
     }
 
