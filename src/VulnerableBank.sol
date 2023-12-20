@@ -14,12 +14,12 @@ contract VulnerableBank {
     function withdraw(uint _amount) public {
         require(balances[msg.sender] >= _amount, "Insufficient balance");
 
-        // This external call can lead to a reentrancy attack
-        // because the balance is updated after the call.
+        // First, reduce the balance to prevent reentrancy
+        balances[msg.sender] -= _amount;
+
+        // Attempt to send Ether and revert if it fails
         (bool sent, ) = msg.sender.call{value: _amount}("");
         require(sent, "Failed to send Ether");
-
-        balances[msg.sender] -= _amount;
     }
 
     // Get the balance of an account
