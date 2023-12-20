@@ -1,57 +1,49 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.7.0;
-pragma abicoder v2; // Enable ABI coder v2
 
 import "forge-std/Test.sol";
-import "./VulnerableBank.sol";
 
 contract Attacker {
-    VulnerableBank public bank;
-    uint public reentrantCalls = 0;
-    uint public maxReentrantCalls = 2; // Allow only one reentrant call
+    SafeBank public secureContract;
 
-    constructor(VulnerableBank _bank) {
-        bank = _bank;
+    constructor(SecureContract _secureContract) {
+        secureContract = _secureContract;
     }
 
+    // Fallback function used to attempt reentrancy
     receive() external payable {
-        if (reentrantCalls < maxReentrantCalls) {
-            reentrantCalls++;
-            bank.withdraw(1 ether); // Only one reentrant withdrawal
-        }
+        secureContract.safeWithdraw(msg.value);
     }
 
     function attack() external payable {
-        bank.deposit{value: msg.value}();
-        bank.withdraw(1 ether); // Initiates the attack
-    }
-
-    function getBalance() public view returns (uint) {
-        return address(this).balance;
+        secureContract.deposit{value: msg.value}();
+        secureContract.safeWithdraw(msg.value);
     }
 }
 
-contract ReentrancyTest is Test {
-    VulnerableBank public bank;
-    Attacker public attacker;
+contract SecureContractTest is Test {
+    SecureContract secureContract;
+    Attacker attacker;
 
     function setUp() public {
-        bank = new VulnerableBank();
-        attacker = new Attacker(bank);
-
-        // Provide sufficient Ether to the bank and the attacker
-        vm.deal(address(bank), 10 ether);
-        vm.deal(address(attacker), 5 ether);
-
-        // Ensure the test account has enough Ether
-        vm.deal(address(this), 10 ether);
+        secureContract = new SecureContract();
+        attacker = new Attacker(secureContract);
     }
 
-    function testReentrancyAttack() public {
-        // Deposit 1 Ether into the bank by the attacker
-        attacker.attack{value: 1 ether}();
+    function testNoReentrancy() public {
+        uint depositAmount = 1 ether;
+        vm.deal(address(attacker), depositAmount);
 
-        // Check if the attacker was able to withdraw more than what was deposited
-        assertTrue(attacker.getBalance() > 1 ether, "Attacker should have more than 1 Ether");
+        uint preAttackBalance = address(secureContract).balance;
+        attacker.attack{value: depositAmount}();
+
+        uint postAttackBalance = address(secureContract).balance;
+        uint postAttackAttackerBalance = address(attacker).balance;
+
+        // Assert that the contract's balance is unchanged
+        assertEq(preAttackBalance, postAttackBalance, "Contract balance should be unchanged");
+
+        // Assert that the attacker's balance is reduced by the deposit amount
+        assertEq(postAttackAttackerBalance, 0, "Attacker should not have recovered the funds");
     }
 }
