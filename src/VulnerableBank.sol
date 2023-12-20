@@ -10,16 +10,14 @@ contract VulnerableBank {
         balances[msg.sender] += msg.value;
     }
 
-    // Withdraw funds from the bank
+    // VulnerableBank contract snippet
     function withdraw(uint _amount) public {
         require(balances[msg.sender] >= _amount, "Insufficient balance");
 
-        // First, reduce the balance to prevent reentrancy
-        balances[msg.sender] -= _amount;
-
-        // Attempt to send Ether and revert if it fails
         (bool sent, ) = msg.sender.call{value: _amount}("");
         require(sent, "Failed to send Ether");
+
+        balances[msg.sender] -= _amount;
     }
 
     // Get the balance of an account
